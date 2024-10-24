@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatGPT - Aprendizado de Inglês</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            height: 100vh;
+            margin: 0;
+        }
+        .sidebar {
+            width: 250px;
+            background-color: #f4f4f4;
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+        .sidebar a {
+            display: block;
+            padding: 10px;
+            margin-bottom: 10px;
+            color: #333;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .sidebar a:hover {
+            background-color: #ddd;
+        }
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .chat-header, .chat-footer {
+            background-color: #007bff;
+            color: white;
+            padding: 10px;
+            text-align: center;
+        }
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background-color: #fff;
+        }
+        .chat-message {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 10px;
+        }
+        .chat-message.user {
+            background-color: #e1ffc7;
+            align-self: flex-end;
+        }
+        .chat-message.bot {
+            background-color: #f1f1f1;
+            align-self: flex-start;
+        }
+        .chat-input {
+            display: flex;
+            padding: 10px;
+            background-color: #f4f4f4;
+        }
+        .chat-input input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+        .chat-input button, .chat-input input[type="file"] {
+            padding: 10px 20px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+        .chat-input button:hover, .chat-input input[type="file"]:hover {
+            background-color: #0056b3;
+        }
+        .settings-panel {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f4f4f4;
+            border-radius: 5px;
+        }
+        .settings-panel label {
+            display: block;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <a href="#">Criado por Mickael</a>
+        <a href="index.html">Home</a>
+        <a href="#">Configurações</a>
+        <a href="#" id="open-settings">Personalizar Chat</a>
+    </div>
+    <div class="chat-container">
+        <div class="chat-header">
+            <select id="fase-selecao">
+                <option value="iniciante">Iniciante</option>
+                <option value="intermediario">Intermediário</option>
+                <option value="avancado">Avançado</option>
+                <option value="extremo">Extremo (Somente Inglês)</option>
+                <option value="audio">Áudio (Respostas em Áudio)</option> <!-- Novo nível de áudio -->
+            </select>
+        </div>
+        <div class="chat-messages" id="chat-window">
+            <!-- Mensagens vão aparecer aqui -->
+        </div>
+        <div class="chat-footer">
+            <div class="chat-input">
+                <input type="text" id="user-input" placeholder="Digite sua mensagem...">
+                <input type="file" id="image-input" accept="image/*" style="display:none;">
+                <label for="image-input" style="cursor:pointer; margin-left:5px;">
+                    <span>📁</span> <!-- Ícone de anexo -->
+                </label>
+                <button id="send-button">Enviar</button>
+                <button id="voice-button">🎤 Falar</button>
+            </div>
+        </div>
+        <div class="settings-panel" id="settings-panel" style="display: none;">
+            <h4>Personalizar Chat</h4>
+            <label>
+                Cor do fundo:
+                <input type="color" id="bg-color" value="#ffffff">
+            </label>
+            <label>
+                Cor do texto:
+                <input type="color" id="text-color" value="#000000">
+            </label>
+            <label>
+                Cor do botão:
+                <input type="color" id="button-color" value="#007bff">
+            </label>
+            <button id="save-settings">Salvar Configurações</button>
+        </div>
+    </div>
+
+    <script>
+        // Função para gerar a fala do bot
+        function speakText(text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US';
+            speechSynthesis.speak(utterance);
+        }
+
+        // Função para tocar áudio
+        function playAudio(audioSrc) {
+            const audio = new Audio(audioSrc);
+            audio.play();
+        }
+
+        // Abre e fecha o painel de configurações
+        document.getElementById('open-settings').addEventListener('click', () => {
+            const settingsPanel = document.getElementById('settings-panel');
+            settingsPanel.style.display = settingsPanel.style.display === 'none' ? 'block' : 'none';
+        });
+
+        // Variável para manter a fase atual
+        let currentFase = 'iniciante';
+
+        // Atualiza a fase ao selecionar uma nova
+        document.getElementById('fase-selecao').addEventListener('change', (event) => {
+            currentFase = event.target.value;
+        });
+
+        // Envio de mensagem e resposta da IA
+        document.getElementById('send-button').addEventListener('click', async () => {
+            const pergunta = document.getElementById('user-input').value;
+            const chatWindow = document.getElementById('chat-window');
+            chatWindow.innerHTML += `<div class="chat-message user"><strong>Você:</strong> ${pergunta}</div>`;
+
+            // Envio da pergunta para a API com a fase atual
+            const response = await fetch('https://nyxgptv1.squareweb.app/gpt/pergunta?' + new URLSearchParams({
+                pergunta: pergunta,
+                fase: currentFase
+            }), {
+                method: 'GET',
+                headers: {
+                    'authorization': 'NYX-GPT-yGqahZDmRq2AfTpIn9I5pXeLiSxYnNKFcxY8uFO',
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+            
+            // Se o nível for áudio, falar a resposta
+            if (currentFase === 'audio') {
+                speakText(data.resposta);
+            } else {
+                chatWindow.innerHTML += `<div class="chat-message bot"><strong>ChatGPT:</strong> ${data.resposta}</div>`;
+            }
+
+            // Fornecer sugestões de tarefas (ChatGPT ensinando o próximo passo)
+            if (currentFase === 'iniciante') {
+                chatWindow.innerHTML += `<div class="chat-message bot">Tente ler e pronunciar as palavras em inglês. Agora, tente construir uma frase simples.</div>`;
+            } else if (currentFase === 'intermediario') {
+                chatWindow.innerHTML += `<div class="chat-message bot">Experimente formar perguntas e respostas em inglês. Vamos trabalhar a fluência.</div>`;
+            } else if (currentFase === 'avancado') {
+                chatWindow.innerHTML += `<div class="chat-message bot">Ótimo! Agora, tente usar frases complexas com conectores como 'although', 'however', 'therefore'.</div>`;
+            } else if (currentFase === 'extremo') {
+                chatWindow.innerHTML += `<div class="chat-message bot">Great! Keep talking and constructing sentences in English. Let's practice idiomatic expressions.</div>`;
+            }
+
+            document.getElementById('user-input').value = '';
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        });
+
+        // Salvar configurações
+        document.getElementById('save-settings').addEventListener('click', () => {
+            const bgColor = document.getElementById('bg-color').value;
+            const textColor = document.getElementById('text-color').value;
+            const buttonColor = document.getElementById('button-color').value;
+
+            // Aplicar as configurações
+            document.body.style.backgroundColor = bgColor;
+            document.getElementById('chat-window').style.color = textColor;
+            document.querySelectorAll('.chat-input button').forEach(button => {
+                button.style.backgroundColor = buttonColor;
+            });
+
+            // Esconder o painel de configurações
+            document.getElementById('settings-panel').style.display = 'none';
+        });
+
+        // Reconhecimento de voz para praticar pronúncia
+        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        recognition.lang = 'en-US';
+        recognition.interimResults = false;
+
+        document.getElementById('voice-button').addEventListener('click', () => {
+            recognition.start();
+        });
+
+        recognition.onresult = (event) => {
+            const speechResult = event.results[0][0].transcript;
+            document.getElementById('user-input').value = speechResult;
+            document.getElementById('send-button').click();  // Enviar o texto transcrito
+        };
+
+        recognition.onerror = (event) => {
+            alert('Erro no reconhecimento de voz: ' + event.error);
+        };
+    </script>
+</body>
+</html>
